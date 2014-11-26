@@ -23,7 +23,7 @@
 # THE SOFTWARE.
 # ****************************************************************************/
 
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 2.8.2 FATAL_ERROR)
 # It ensures that when Find*.cmake files included from cmake's Modules dir
 # include another *.cmake file with relative path, that file will be included
 # also from cmake's Modules dir, to not clash with per-project files.
@@ -62,6 +62,7 @@ option(BUILD_CPP_TESTS "Build TestCpp samples" ON)
 option(BUILD_LUA_LIBS "Build lua libraries" ON)
 option(BUILD_LUA_TESTS "Build TestLua samples" ON)
 option(USE_PREBUILT_LIBS "Use prebuilt libraries in external directory" ${USE_PREBUILT_LIBS_DEFAULT})
+option(DOWNLOAD_THIRDPARTY_LIBS "Automatically download necessary third-party libraries at build time" ON)
 
 if(USE_PREBUILT_LIBS AND MINGW)
   message(FATAL_ERROR "Prebuilt windows libs can't be used with mingw, please use packages.")
@@ -92,6 +93,18 @@ else()
 endif(MSVC)
 
 set(COCOS_EXTERNAL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external)
+
+if(DOWNLOAD_THIRDPARTY_LIBS)
+  include(ExternalProject)
+  ExternalProject_Add(
+    cocos2d-x-3rd-party-libs-bin
+	PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/downloads
+    GIT_REPOSITORY https://github.com/cocos2d/cocos2d-x-3rd-party-libs-bin.git
+    GIT_TAG v3-deps-22
+    DEPENDERS "thelostadventure"
+    UPDATE_COMMAND ""
+  )
+endif()
 
 # Some macro definitions
 if(WINDOWS)
@@ -236,8 +249,18 @@ cocos_find_package(ZLIB ZLIB REQUIRED)
 # moreover our embedded version modified to quick provide
 # functionality needed by cocos.
 if(USE_PREBUILT_LIBS OR NOT MINGW)
-  add_subdirectory(external/unzip)
-  set(MINIZIP_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/external/unzip)
+  ExternalProject_Add(
+    UNZIP
+	DEPENDS "cocos2d-x-3rd-party-libs-bin"
+	PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/downloads
+	DOWNLOAD_COMMAND ""
+	UPDATE_COMMAND ""
+	INSTALL_COMMAND ""
+  )
+  add_library(unzip STATIC IMPORTED)
+  set_property(TARGET unzip PROPERTY IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/lib)
+
+  set(MINIZIP_INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR}/external/unzip)
   set(MINIZIP_LIBRARIES unzip)
   message(STATUS "MINIZIP include dirs: ${MINIZIP_INCLUDE_DIRS}")
 else()
@@ -264,7 +287,7 @@ cocos_find_package(CURL CURL REQUIRED)
 # and source file not provided. So these files can be
 # compiled only with our in-source version of protobuf-lite
 ## if(USE_PREBUILT_LIBS)
-  add_subdirectory(external/protobuf-lite)
+#add_subdirectory(external/protobuf-lite)
   set(PROTOBUF_LITE_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/external/protobuf-lite/src)
   set(PROTOBUF_LITE_LIBRARIES protobuf)
 ## else()
@@ -277,7 +300,7 @@ message(STATUS "Protobuf include dirs: ${PROTOBUF_LITE_INCLUDE_DIRS}")
 
 # build for 3rd party libraries
 if(LINUX OR APPLE)
-add_subdirectory(external/xxhash)
+	#add_subdirectory(external/xxhash)
 endif()
 
 # libcocos2d.a
